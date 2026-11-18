@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="ru" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✧ Stellar Legacy 🐞</title>
+    <meta name="description" content="Ролевой проект по вселенной Леди Баг и Супер-Кота на базе Superstellar: Next Generation. Правила, новости, премиум и вход через Google, GitHub или GitLab.">
+    <meta name="theme-color" content="#09090B">
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Inter"', 'sans-serif'],
+                        display: ['"Syne"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        bg: '#09090B',
+                        panel: '#111114',
+                        line: '#222228',
+                        crimson: '#E11D48',
+                        gold: '#EAB308',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-in-out: cubic-bezier(0.76, 0, 0.24, 1);
+            --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        body {
+            background-color: #09090B;
+            color: #FAFAFA;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* 0. Фотографические фоны вкладок (смена с растворением) */
+        #page-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+            background: #09090B;
+        }
+        .page-bg-layer {
+            position: absolute;
+            inset: -2%;
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-position: center;
+            opacity: 0;
+            transform: scale(1.05);
+            transition: opacity 0.9s var(--ease-out), transform 1.4s var(--ease-out);
+            will-change: opacity, transform;
+        }
+        .page-bg-layer.is-active {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .page-bg-layer[data-bg="main"]    { background-position: 68% 24%; }
+        .page-bg-layer[data-bg="rules"]   { background-position: center 34%; }
+        .page-bg-layer[data-bg="news"]    { background-position: center 45%; }
+        .page-bg-layer[data-bg="premium"] { background-position: center 30%; }
+        .page-bg-layer[data-bg="socials"] { background-position: center 38%; }
+
+        /* Затемнение поверх фото: текст и карточки остаются читаемыми */
+        #page-bg::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(180deg, rgba(9, 9, 11, 0.42) 0%, rgba(9, 9, 11, 0.34) 30%, rgba(9, 9, 11, 0.78) 68%, rgba(9, 9, 11, 0.96) 90%, #09090B 100%),
+                linear-gradient(90deg, rgba(9, 9, 11, 0.78) 0%, rgba(9, 9, 11, 0.32) 45%, rgba(9, 9, 11, 0.05) 80%);
+        }
+        /* На главной фото — герой, поэтому затемняем чуть меньше */
+        #page-bg[data-page="main"]::after {
+            background:
+                linear-gradient(180deg, rgba(9, 9, 11, 0.30) 0%, rgba(9, 9, 11, 0.26) 35%, rgba(9, 9, 11, 0.72) 72%, rgba(9, 9, 11, 0.96) 92%, #09090B 100%),
+                linear-gradient(90deg, rgba(9, 9, 11, 0.70) 0%, rgba(9, 9, 11, 0.22) 52%, rgba(9, 9, 11, 0.02) 88%);
+        }
+        @media (max-width: 640px) {
+            /* На телефоне фото занимает всю высоту — усиливаем затемнение */
+            #page-bg::after,
+            #page-bg[data-page="main"]::after {
+                background:
+                    linear-gradient(180deg, rgba(9, 9, 11, 0.55) 0%, rgba(9, 9, 11, 0.62) 40%, rgba(9, 9, 11, 0.9) 80%, #09090B 100%);
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .page-bg-layer { transition: none; }
+        }
+
+        /* Лёгкая тень у заголовка главной, чтобы читался на фото */
+        #page-main h1,
+        #page-main p {
+            text-shadow: 0 2px 24px rgba(0, 0, 0, 0.65);
+        }
+
+        /* 1. Двухстворчатая кинематографичная шторка заставки */
+        #intro-screen {
+            pointer-events: auto;
+        }
+        #intro-screen.is-closed {
+            pointer-events: none;
+        }
+        body.intro-lock {
+            overflow: hidden;
+        }
+        .curtain-top, .curtain-bottom {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 50%;
+            background: #000000;
+            transition: transform 1.05s var(--ease-in-out);
+            will-change: transform;
+            z-index: 1;
+        }
+        .curtain-top { top: 0; border-bottom: 1px solid rgba(225, 29, 72, 0); }
+        .curtain-bottom { bottom: 0; border-top: 1px solid rgba(225, 29, 72, 0); }
+
+        #intro-screen.is-splitting .curtain-top {
+            border-bottom-color: rgba(225, 29, 72, 0.9);
+            box-shadow: 0 4px 30px rgba(225, 29, 72, 0.5);
+        }
+        #intro-screen.is-splitting .curtain-bottom {
+            border-top-color: rgba(225, 29, 72, 0.9);
+        }
+        #intro-screen.is-closed .curtain-top { transform: translateY(-102%); }
+        #intro-screen.is-closed .curtain-bottom { transform: translateY(102%); }
+
+        #intro-video {
+            transition: opacity 0.35s ease, transform 0.55s var(--ease-out);
+            will-change: opacity, transform;
+        }
+        #intro-screen.is-splitting #intro-video {
+            opacity: 0;
+            transform: scale(1.03);
+        }
+        body.intro-lock #mac-cursor {
+            opacity: 0;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .curtain-top, .curtain-bottom,
+            #intro-video {
+                transition-duration: 0.01s;
+            }
+        }
+
+        /* 2. Построчный вылет (Mask Reveal) */
+        .mask-wrap {
+            overflow: hidden;
+        }
+        .mask-item {
+            transform: translateY(115%) skewY(2deg);
+            opacity: 0;
+            transition: transform 0.95s var(--ease-out), opacity 0.75s var(--ease-out);
+            will-change: transform, opacity;
+        }
+        .is-ready .mask-item {
+            transform: translateY(0) skewY(0deg);
+            opacity: 1;
+        }
+
+        /* 3. Каскадное появление секций и строк при скролле */
+        .scroll-fade {
+            opacity: 0;
+            transform: translateY(32px);
+            transition: opacity 0.85s var(--ease-out), transform 0.85s var(--ease-out);
+            will-change: transform, opacity;
+        }
+        .scroll-fade.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Плавная смена отдельных страниц-вкладок */
+        .page-view {
+            animation: pageSwitchIn 0.45s var(--ease-out) forwards;
+        }
+        @keyframes pageSwitchIn {
+            from { opacity: 0; transform: translateY(14px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .rule-row-anim {
+            opacity: 0;
+            transform: translateX(-18px);
+            animation: slideRuleIn 0.55s var(--ease-out) forwards;
+        }
+        @keyframes slideRuleIn {
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* 4. Прожектор (Spotlight) на карточках Премиума */
+        .spotlight-card {
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.45s var(--ease-out), border-color 0.35s ease;
+        }
+        .spotlight-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(380px circle at var(--mx, -999px) var(--my, -999px), rgba(225, 29, 72, 0.14), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.35s ease;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .spotlight-card:hover::before {
+            opacity: 1;
+        }
+        .spotlight-card > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 5. Тонкая анимация подчёркивания ссылок */
+        .link-line {
+            position: relative;
+        }
+        .link-line::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 1px;
+            background-color: #E11D48;
+            transform: scaleX(0);
+            transform-origin: right;
+            transition: transform 0.4s var(--ease-out);
+        }
+        .link-line:hover::after {
+            transform: scaleX(1);
+            transform-origin: left;
+        }
+
+        /* 6. Плавная заливка кнопок с диагональным срезом */
+        .btn-fill {
+            position: relative;
+            overflow: hidden;
+            transition: color 0.35s var(--ease-out), transform 0.25s var(--ease-out);
+            will-change: transform;
+        }
+        .btn-fill::before {
+            content: '';
+            position: absolute;
+            inset: -10%;
+            background-color: #E11D48;
+            transform: translateY(105%) skewY(-4deg);
+            transition: transform 0.45s var(--ease-out);
+            z-index: 0;
+        }
+        .btn-fill:hover::before {
+            transform: translateY(0) skewY(0deg);
+        }
+        .btn-fill span {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 7. Анимация строк новостей и соцсетей */
+        .row-hover {
+            position: relative;
+            transition: padding-left 0.4s var(--ease-out), background-color 0.35s ease;
+        }
+        .row-hover::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 2px;
+            height: 0;
+            background: #E11D48;
+            transform: translateY(-50%);
+            transition: height 0.35s var(--ease-out);
+        }
+        .row-hover:hover {
+            padding-left: 14px;
+            background-color: rgba(255, 255, 255, 0.015);
+        }
+        .row-hover:hover::before {
+            height: 60%;
+        }
+
+        /* 8. Кастомный минималистичный чёрный курсор (только на десктопе с мышью) */
+        @media (pointer: fine) {
+            body, a, button, input {
+                cursor: none !important;
+            }
+            #mac-cursor {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 14px;
+                height: 14px;
+                background-color: #09090B;
+                border: 1.5px solid rgba(255, 255, 255, 0.85);
+                border-radius: 2px 10px 10px 10px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65);
+                pointer-events: none;
+                z-index: 9999;
+                transition: width 0.2s var(--ease-out), height 0.2s var(--ease-out), border-radius 0.2s var(--ease-out), background-color 0.2s ease, border-color 0.2s ease;
+                will-change: transform, width, height;
+            }
+            #mac-cursor::after {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 3px;
+                height: 3px;
+                background: #FFFFFF;
+                border-radius: 9999px;
+                transform: translate(-50%, -50%) scale(0);
+                transition: transform 0.2s var(--ease-out);
+            }
+            #mac-cursor.is-hover {
+                width: 24px;
+                height: 24px;
+                border-radius: 9999px;
+                background-color: rgba(9, 9, 11, 0.78);
+                border-color: #FFFFFF;
+            }
+            #mac-cursor.is-hover::after {
+                transform: translate(-50%, -50%) scale(1);
+            }
+            #mac-cursor.is-down {
+                transform: scale(0.85);
+            }
+        }
+
+        /* Анимация модальных окон */
+        .modal-backdrop {
+            animation: fadeIn 0.28s var(--ease-out) forwards;
+        }
+        .modal-box {
+            animation: modalPop 0.4s var(--ease-out) forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes modalPop {
+            from { opacity: 0; transform: translateY(16px) scale(0.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Кастомный скроллбар */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #09090B; }
+        ::-webkit-scrollbar-thumb { background: #27272A; }
+        ::-webkit-scrollbar-thumb:hover { background: #E11D48; }
+    </style>
+</head>
+<body class="selection:bg-crimson selection:text-white">
+
+    <!-- Фотографические фоны вкладок: assets/bg/<вкладка>.jpg -->
+    <div id="page-bg" data-page="main" aria-hidden="true">
+        <div class="page-bg-layer is-active" data-bg="main" style="background-image: url('assets/bg/main.jpg')"></div>
+        <div class="page-bg-layer" data-bg="rules" style="background-image: url('assets/bg/rules.jpg')"></div>
+        <div class="page-bg-layer" data-bg="news" style="background-image: url('assets/bg/news.jpg')"></div>
+        <div class="page-bg-layer" data-bg="premium" style="background-image: url('assets/bg/premium.jpg')"></div>
+        <div class="page-bg-layer" data-bg="socials" style="background-image: url('assets/bg/socials.jpg')"></div>
+    </div>
+
+    <!-- Интерактивный 60FPS Canvas-фон (звёздная орбита + искры от курсора и кликов) -->
+    <canvas id="bg-canvas" class="fixed inset-0 pointer-events-none z-0 opacity-75"></canvas>
+
+    <!-- Минималистичный чёрный курсор -->
+    <div id="mac-cursor" class="hidden md:block"></div>
+
+    <!-- ===================================================================== -->
+    <!-- ЭКРАН ЗАГРУЗКИ: ВИДЕО-ЗАСТАВКА + SPLIT-ШТОРКА                         -->
+    <!-- ===================================================================== -->
+    <div id="intro-screen" class="fixed inset-0 z-[100] p-6 sm:p-10" oncontextmenu="return false">
+        
+        <!-- Две раздвижные створки -->
+        <div class="curtain-top"></div>
+        <div class="curtain-bottom"></div>
+
+        <!-- Видео-заставка: без управления, без паузы, без скачивания -->
+        <video id="intro-video" class="absolute inset-0 z-[2] w-full h-full object-contain bg-black pointer-events-none select-none" playsinline muted preload="auto" disablepictureinpicture controlslist="nodownload noplaybackrate nofullscreen" draggable="false" oncontextmenu="return false">
+            <source src="intro.mp4" type="video/mp4">
+        </video>
+
+        <!-- Заглушка, если видео не загрузилось -->
+        <div id="intro-placeholder" class="hidden absolute inset-0 z-[3] flex items-center justify-center pointer-events-none">
+            <div class="font-display text-3xl sm:text-5xl font-extrabold tracking-tight text-white">
+                ✧ Stellar Legacy 🐞
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- ПУНКТ 1: НАВИГАЦИЯ + ИНДИКАТОР ПРОГРЕССА СКРОЛЛА                     -->
+    <!-- ===================================================================== -->
+    <header class="sticky top-0 z-40 bg-bg/85 backdrop-blur-md border-b border-line relative">
+        <!-- Полоса прогресса скролла -->
+        <div id="scroll-bar" class="absolute bottom-0 left-0 h-[1px] bg-crimson w-0 transition-none"></div>
+
+        <div class="max-w-5xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
+            
+            <a href="#main" onclick="switchPage('main'); return false;" class="scramble-link font-display font-bold text-base text-white tracking-tight" data-text="✧ Stellar Legacy 🐞">
+                ✧ Stellar Legacy 🐞
+            </a>
+
+            <nav class="hidden md:flex items-center gap-7 text-xs text-zinc-400">
+                <a href="#main" data-page="main" onclick="switchPage('main'); return false;" class="nav-tab link-line scramble-link text-white transition-colors" data-text="Главная">Главная</a>
+                <a href="#rules" data-page="rules" onclick="switchPage('rules'); return false;" class="nav-tab link-line scramble-link hover:text-white transition-colors" data-text="Правила">Правила</a>
+                <a href="#news" data-page="news" onclick="switchPage('news'); return false;" class="nav-tab link-line scramble-link hover:text-white transition-colors" data-text="Новости">Новости</a>
+                <a href="#premium" data-page="premium" onclick="switchPage('premium'); return false;" class="nav-tab link-line scramble-link hover:text-crimson transition-colors" data-text="Премиум">Премиум</a>
+                <a href="#socials" data-page="socials" onclick="switchPage('socials'); return false;" class="nav-tab link-line scramble-link hover:text-white transition-colors" data-text="Соцсети">Соцсети</a>
+            </nav>
+
+            <!-- Блок авторизации -->
+            <div class="flex items-center gap-4">
+                <div id="auth-guest" class="flex items-center gap-4 text-xs">
+                    <button onclick="openAuthModal()" class="magnetic-btn px-4 py-2 bg-white text-black font-medium hover:bg-crimson hover:text-white transition-colors cursor-pointer">
+                        Вход
+                    </button>
+                </div>
+
+                <div id="auth-logged" class="hidden items-center gap-4 text-xs">
+                    <div class="flex items-center gap-2">
+                        <img id="nav-avatar" alt="" class="hidden w-6 h-6 rounded-full object-cover border border-line">
+                        <span class="w-1.5 h-1.5 rounded-full bg-crimson animate-pulse"></span>
+                        <span id="nav-nick" class="font-medium text-white"></span>
+                        <span id="nav-badge" class="hidden font-mono text-[10px] text-gold uppercase"></span>
+                    </div>
+                    <button onclick="logoutUser()" class="text-zinc-500 hover:text-white transition-colors cursor-pointer">
+                        Выйти
+                    </button>
+                </div>
+
+                <button onclick="toggleMobileNav()" class="md:hidden text-zinc-400 hover:text-white p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path d="M4 7h16M4 17h16"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Мобильное меню -->
+        <div id="mobile-nav" class="hidden md:hidden border-t border-line bg-bg px-5 py-4 flex-col gap-3 text-xs text-zinc-400">
+            <a href="#main" data-page="main" onclick="switchPage('main'); toggleMobileNav(); return false;" class="nav-tab text-white">Главная</a>
+            <a href="#rules" data-page="rules" onclick="switchPage('rules'); toggleMobileNav(); return false;" class="nav-tab hover:text-white">Правила</a>
+            <a href="#news" data-page="news" onclick="switchPage('news'); toggleMobileNav(); return false;" class="nav-tab hover:text-white">Новости</a>
+            <a href="#premium" data-page="premium" onclick="switchPage('premium'); toggleMobileNav(); return false;" class="nav-tab hover:text-white">Премиум</a>
+            <a href="#socials" data-page="socials" onclick="switchPage('socials'); toggleMobileNav(); return false;" class="nav-tab hover:text-white">Соцсети</a>
+        </div>
+    </header>
+
+    <main id="app-pages" class="relative z-10 min-h-[calc(100vh-8.5rem)]">
+
+        <!-- ================================================================= -->
+        <!-- ВКЛАДКА 1: ГЛАВНАЯ                                                -->
+        <!-- ================================================================= -->
+        <section id="page-main" data-view="main" class="page-view px-5 sm:px-8 pt-10 pb-10">
+            <div class="max-w-5xl mx-auto min-h-[calc(100vh-9rem)] flex items-center">
+                <div class="w-full max-w-3xl">
+
+                    <div class="mask-wrap">
+                        <h1 id="hero-title" class="mask-item font-display text-[2.75rem] leading-[1.04] sm:text-7xl md:text-8xl font-extrabold text-white tracking-tight" style="transition-delay: 0.12s;">
+                            ✧ Stellar Legacy 🐞
+                        </h1>
+                    </div>
+
+                    <div class="mask-wrap mt-6 sm:mt-7">
+                        <p class="mask-item text-base sm:text-lg text-zinc-300 leading-relaxed" style="transition-delay: 0.24s;">
+                            Информационный портал ролевого проекта по вселенной Леди Баг и Супер-Кота на базе игры Superstellar: Next Generation. Правила отыгрыша, новости, соцсети и доступ к привилегиям.
+                        </p>
+                    </div>
+
+                    <div class="mask-item mt-9 sm:mt-10 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3" style="transition-delay: 0.36s;">
+                        <button onclick="switchPage('rules')" class="group inline-flex w-full sm:w-auto items-center justify-center gap-2.5 bg-white px-6 py-3.5 text-sm sm:text-[15px] font-semibold text-black hover:bg-crimson hover:text-white transition-colors cursor-pointer">
+                            Перейти в правила
+                            <span class="font-mono text-xs opacity-50 transition-transform duration-300 group-hover:translate-x-1">→</span>
+                        </button>
+
+                        <button onclick="switchPage('premium')" class="group inline-flex w-full sm:w-auto items-center justify-center gap-2.5 border border-white/25 px-6 py-3.5 text-sm sm:text-[15px] font-medium text-white hover:border-gold hover:text-gold transition-colors cursor-pointer">
+                            Премиум
+                            <span class="font-mono text-xs opacity-50 transition-transform duration-300 group-hover:translate-x-1">→</span>
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- ВКЛАДКА 2: ПРАВИЛА (ПРАВИЛА РП / ПРАВИЛА ТГ ЧАТА)                 -->
+        <!-- ================================================================= -->
+        <section id="page-rules" data-view="rules" class="page-view hidden max-w-5xl mx-auto px-5 sm:px-8 pt-12 sm:pt-14 pb-24">
+            <!-- Переключатель разделов правил -->
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-8 border-b border-line mb-10">
+                <div>
+                    <div id="rules-kicker" class="font-mono text-xs text-crimson mb-2 tracking-widest">𓆩 🐞 𓆪 СВОД ПРАВИЛ ПРОЕКТА</div>
+                    <h2 id="rules-heading" class="font-display text-2xl sm:text-3xl font-bold text-white">Правила РП</h2>
+                </div>
+
+                <!-- Главные табы: Правила РП | Правила ТГ чата -->
+                <div class="inline-flex border border-line bg-panel p-1 self-start sm:self-auto">
+                    <button onclick="switchRulesSection('rp')" id="sec-tab-rp" class="px-4 py-2 text-xs font-medium bg-white text-black transition-colors cursor-pointer">
+                        Правила РП
+                    </button>
+                    <button onclick="switchRulesSection('tg')" id="sec-tab-tg" class="px-4 py-2 text-xs font-medium text-zinc-400 hover:text-white transition-colors cursor-pointer">
+                        Правила ТГ чата
+                    </button>
+                </div>
+            </div>
+
+            <!-- ПОДРАЗДЕЛ 1: ПРАВИЛА РП -->
+            <div id="rules-block-rp">
+                <div class="flex flex-wrap gap-5 text-xs mb-6">
+                    <button onclick="selectRuleTab('all')" data-rtab="all" class="rtab text-white border-b border-crimson pb-1 cursor-pointer transition-colors">Все (10)</button>
+                    <button onclick="selectRuleTab('rp')" data-rtab="rp" class="rtab text-zinc-500 hover:text-white pb-1 cursor-pointer transition-colors">Отыгрыш и быт</button>
+                    <button onclick="selectRuleTab('miraculous')" data-rtab="miraculous" class="rtab text-zinc-500 hover:text-white pb-1 cursor-pointer transition-colors">Талисманы и бой</button>
+                </div>
+
+                <div id="rules-list" class="divide-y divide-line border-t border-b border-line">
+                    <!-- Заполняется скриптом -->
+                </div>
+
+                <!-- Важный блок о занятии ролей -->
+                <div class="mt-10 border border-line bg-panel/80 p-6 sm:p-7 relative overflow-hidden">
+                    <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-crimson"></div>
+                    <div class="font-mono text-xs text-crimson uppercase tracking-wider mb-2">
+                        ⌗ Важно о занятии ролей
+                    </div>
+                    <p class="text-sm text-zinc-200 leading-relaxed">
+                        На каждое РП роли распределяются <span class="text-white font-semibold underline decoration-crimson underline-offset-4">заново</span>.
+                    </p>
+                    <p class="text-xs sm:text-sm text-zinc-400 mt-1.5 leading-relaxed">
+                        Занять роль можно после выхода анонса РП и соответствующего опроса.
+                    </p>
+                </div>
+
+                <div class="mt-6 text-xs font-mono text-zinc-500">
+                    𖤐 Правила могут обновляться. Следите за изменениями и соблюдайте их во время игры.
+                </div>
+            </div>
+
+            <!-- ПОДРАЗДЕЛ 2: ПРАВИЛА ТГ ЧАТА -->
+            <div id="rules-block-tg" class="hidden">
+                <!-- Общие положения -->
+                <div class="border border-line bg-panel/60 px-5 py-4 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div class="text-xs font-mono text-zinc-400">
+                        <span class="text-white font-semibold">📍 Общие положения:</span> Каждый участник обязан знать правила. Незнание правил не освобождает от ответственности.
+                    </div>
+                </div>
+
+                <div id="tg-rules-list" class="divide-y divide-line border-t border-b border-line">
+                    <!-- Заполняется скриптом -->
+                </div>
+
+                <!-- Блок Дополнительно -->
+                <div class="mt-10 border border-line bg-panel/80 p-6 sm:p-7 relative overflow-hidden">
+                    <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-crimson"></div>
+                    <div class="font-mono text-xs text-crimson uppercase tracking-wider mb-2">
+                        📌 Дополнительно
+                    </div>
+                    <p class="text-sm text-zinc-200 leading-relaxed">
+                        Администрация вправе ужесточать наказания при серьёзных или систематических нарушениях.
+                    </p>
+                    <p class="text-xs sm:text-sm text-zinc-400 mt-1.5 leading-relaxed">
+                        Все участники равны — уважайте друг друга.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- ВКЛАДКА 3: НОВОСТИ                                                -->
+        <!-- ================================================================= -->
+        <section id="page-news" data-view="news" class="page-view hidden max-w-5xl mx-auto px-5 sm:px-8 pt-12 sm:pt-14 pb-24">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
+                <div>
+                    <h2 class="font-display text-2xl sm:text-3xl font-bold text-white">Новости</h2>
+                    <p class="text-xs text-zinc-500 mt-1">Нажмите на новость, чтобы открыть полный текст</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span id="news-count-label" class="font-mono text-xs text-zinc-500">ПУБЛИКАЦИЙ: 1</span>
+                    <button id="btn-add-news" onclick="openNewsModal()" class="hidden magnetic-btn px-4 py-2 bg-white text-black text-xs font-semibold hover:bg-crimson hover:text-white transition-colors cursor-pointer">
+                        + Написать новость
+                    </button>
+                </div>
+            </div>
+
+            <div id="news-list" class="divide-y divide-line border-t border-b border-line">
+                <!-- Заполняется скриптом -->
+            </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- ВКЛАДКА 4: ПРЕМИУМ (ПОКУПКА НЕДОСТУПНА БЕЗ РЕГИСТРАЦИИ)           -->
+        <!-- ================================================================= -->
+        <section id="page-premium" data-view="premium" class="page-view hidden max-w-5xl mx-auto px-5 sm:px-8 pt-12 sm:pt-14 pb-24">
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-8 border-b border-line mb-10">
+                <div>
+                    <div class="font-mono text-xs text-crimson mb-2 tracking-widest">🎲 STELLAR PREMIUM</div>
+                    <h2 class="font-display text-2xl sm:text-3xl font-bold text-white">Привилегия проекта</h2>
+                </div>
+
+                <div id="prem-status-line" class="text-xs font-mono text-crimson">
+                    ● Требуется регистрация для оформления
+                </div>
+            </div>
+
+            <!-- Двухколоночная асимметричная компоновка: слева возможности, справа выбор срока -->
+            <div class="grid lg:grid-cols-12 border border-line bg-panel/90 divide-y lg:divide-y-0 lg:divide-x divide-line">
+                
+                <!-- Левая колонка: список преимуществ -->
+                <div class="lg:col-span-7 p-6 sm:p-8 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between gap-3 mb-6">
+                            <h3 class="font-display text-lg sm:text-xl font-bold text-white">🎲 STELLAR PREMIUM</h3>
+                            <span class="font-mono text-[11px] text-zinc-500 border border-line px-2.5 py-1">TELEGRAM STARS / ₴</span>
+                        </div>
+
+                        <ul class="divide-y divide-line/70 border-t border-b border-line/70 text-sm text-zinc-200">
+                            <li class="py-3.5 flex items-center gap-3.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-crimson shrink-0"></span>
+                                <span>Особый статус Premium в профиле.</span>
+                            </li>
+                            <li class="py-3.5 flex items-center gap-3.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-zinc-400 shrink-0"></span>
+                                <span>Вы можете заходить на рп без очередей</span>
+                            </li>
+                            <li class="py-3.5 flex items-center gap-3.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-zinc-400 shrink-0"></span>
+                                <span>Доступ к закрытым розыгрышам.</span>
+                            </li>
+                            <li class="py-3.5 flex items-center gap-3.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-crimson shrink-0"></span>
+                                <span>Дополнительные бонусы от администрации.</span>
+                            </li>
+                            <li class="py-3.5 flex items-center gap-3.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-crimson shrink-0"></span>
+                                <span>Уникальная роль или отметка Premium в чате.</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="mt-6 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-zinc-400">
+                        <span>Оплата принимается в звёздах Telegram (Stars) или в гривнах (₴).</span>
+                        <a href="https://t.me/feezzcoo" target="_blank" rel="noopener noreferrer" class="font-mono text-white hover:text-crimson transition-colors shrink-0">
+                            Написать в Telegram: @feezzcoo ↗
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Правая колонка: выбор срока и прайс -->
+                <div class="lg:col-span-5 p-6 sm:p-8 flex flex-col justify-between bg-bg/40">
+                    <div>
+                        <div class="font-mono text-xs text-zinc-500 uppercase tracking-wider mb-4">Прайс-лист</div>
+
+                        <div class="space-y-2.5" id="prem-tiers-list">
+                            <button type="button" onclick="selectPremPlan(0)" data-plan="0" class="prem-plan-btn spotlight-card w-full text-left p-4 border border-crimson bg-panel transition-colors cursor-pointer">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-sm font-medium text-white">୨୧ 2 недели</span>
+                                    <span class="font-mono text-xs sm:text-sm text-white">55 ⭐️ / 35 ₴</span>
+                                </div>
+                            </button>
+
+                            <button type="button" onclick="selectPremPlan(1)" data-plan="1" class="prem-plan-btn spotlight-card w-full text-left p-4 border border-line bg-bg/70 hover:border-zinc-600 transition-colors cursor-pointer">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-sm font-medium text-white">୨୧ 1 месяц</span>
+                                    <span class="font-mono text-xs sm:text-sm text-white">100 ⭐ / 65 ₴</span>
+                                </div>
+                            </button>
+
+                            <button type="button" onclick="selectPremPlan(2)" data-plan="2" class="prem-plan-btn spotlight-card w-full text-left p-4 border border-line bg-bg/70 hover:border-zinc-600 transition-colors cursor-pointer">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-sm font-medium text-white">୨୧ Навсегда</span>
+                                    <span class="font-mono text-xs sm:text-sm text-gold">160 ⭐️ / 110 ₴</span>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 pt-4 border-t border-line text-xs font-mono text-zinc-400">
+                        Оформление происходит через Telegram: <a href="https://t.me/feezzcoo" target="_blank" rel="noopener noreferrer" class="text-white hover:text-crimson underline underline-offset-4 transition-colors">@feezzcoo ↗</a>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- ВКЛАДКА 5: СОЦСЕТИ                                                -->
+        <!-- ================================================================= -->
+        <section id="page-socials" data-view="socials" class="page-view hidden max-w-5xl mx-auto px-5 sm:px-8 pt-12 sm:pt-14 pb-24">
+            <h2 class="font-display text-2xl sm:text-3xl font-bold text-white mb-10">Соцсети</h2>
+
+            <div class="divide-y divide-line border-t border-b border-line">
+                <a href="https://www.tiktok.com/@stellarlegacy_" target="_blank" rel="noopener noreferrer" class="row-hover py-5 flex items-center justify-between group">
+                    <div>
+                        <div class="text-sm font-medium text-white group-hover:text-crimson transition-colors">Тик Ток</div>
+                        <div class="text-xs font-mono text-zinc-500 mt-0.5">@stellarlegacy_</div>
+                    </div>
+                    <span class="font-mono text-xs text-zinc-500 group-hover:text-white transition-transform duration-300 group-hover:translate-x-1.5 group-hover:-translate-y-0.5">↗</span>
+                </a>
+
+                <a href="https://t.me/SuperStellarLegacy" target="_blank" rel="noopener noreferrer" class="row-hover py-5 flex items-center justify-between group">
+                    <div>
+                        <div class="text-sm font-medium text-white group-hover:text-crimson transition-colors">Телеграм Канал</div>
+                        <div class="text-xs font-mono text-zinc-500 mt-0.5">t.me/SuperStellarLegacy</div>
+                    </div>
+                    <span class="font-mono text-xs text-zinc-500 group-hover:text-white transition-transform duration-300 group-hover:translate-x-1.5 group-hover:-translate-y-0.5">↗</span>
+                </a>
+
+                <a href="https://t.me/SuperStellarLegacyChat" target="_blank" rel="noopener noreferrer" class="row-hover py-5 flex items-center justify-between group">
+                    <div>
+                        <div class="text-sm font-medium text-white group-hover:text-crimson transition-colors">Чат ТГ</div>
+                        <div class="text-xs font-mono text-zinc-500 mt-0.5">t.me/SuperStellarLegacyChat</div>
+                    </div>
+                    <span class="font-mono text-xs text-zinc-500 group-hover:text-white transition-transform duration-300 group-hover:translate-x-1.5 group-hover:-translate-y-0.5">↗</span>
+                </a>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="relative z-10 border-t border-line py-8 px-5 sm:px-8">
+        <div class="max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-zinc-600 font-mono">
+            <span>✧ Stellar Legacy 🐞</span>
+            <span>Superstellar: Next Generation</span>
+        </div>
+    </footer>
+
+    <!-- ===================================================================== -->
+    <!-- ОКНО ВХОДА (GOOGLE / GITHUB / GITLAB)                                 -->
+    <!-- ===================================================================== -->
+    <div id="auth-modal" class="hidden modal-backdrop fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="modal-box bg-panel border border-line max-w-md w-full p-6 sm:p-8 relative">
+            <button onclick="closeAuthModal()" class="absolute top-5 right-5 text-xs font-mono text-zinc-500 hover:text-white cursor-pointer">✕</button>
+
+            <div class="font-mono text-[10px] text-crimson mb-2 tracking-[0.2em] uppercase flex items-center gap-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-crimson animate-pulse"></span>
+                Stellar ID
+            </div>
+            <h3 class="font-display text-2xl font-bold text-white leading-tight">Вход в проект</h3>
+            <p class="text-xs text-zinc-400 mt-2 mb-6 leading-relaxed">
+                Аккаунт создаётся автоматически при первом входе. Он нужен для премиума, заявок и сохранения персонажа.
+            </p>
+
+            <div id="auth-notice" class="hidden mb-5 border border-crimson/40 bg-crimson/10 px-3 py-2.5 text-[11px] leading-relaxed text-zinc-200"></div>
+
+            <div class="space-y-2.5">
+                <button id="auth-btn-google" type="button" onclick="loginWithProvider('google')" class="group w-full py-3 px-4 bg-white text-black text-xs font-semibold hover:bg-crimson hover:text-white transition-colors flex items-center gap-3 text-left cursor-pointer">
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M21.35 11.1H12v2.98h5.35c-.23 1.48-1.69 4.35-5.35 4.35-3.22 0-5.85-2.67-5.85-5.95s2.63-5.95 5.85-5.95c1.83 0 3.06.78 3.76 1.45l2.56-2.47C16.68 3.98 14.55 3 12 3 7.03 3 3 7.03 3 12s4.03 9 9 9c5.2 0 8.65-3.65 8.65-8.8 0-.59-.06-1.04-.15-1.1z"/>
+                    </svg>
+                    <span class="flex-1">Продолжить с Google</span>
+                    <span data-provider-state="google" class="font-mono text-[9px] uppercase tracking-wider opacity-60"></span>
+                </button>
+
+                <button id="auth-btn-github" type="button" onclick="loginWithProvider('github')" class="group w-full py-3 px-4 bg-bg border border-line text-white text-xs font-medium hover:border-crimson transition-colors flex items-center gap-3 text-left cursor-pointer">
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+                    </svg>
+                    <span class="flex-1">Продолжить с GitHub</span>
+                    <span data-provider-state="github" class="font-mono text-[9px] uppercase tracking-wider opacity-60"></span>
+                </button>
+
+                <button id="auth-btn-gitlab" type="button" onclick="loginWithProvider('gitlab')" class="group w-full py-3 px-4 bg-bg border border-line text-white text-xs font-medium hover:border-crimson transition-colors flex items-center gap-3 text-left cursor-pointer">
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M22.65 14.39L12 22.13 1.35 14.39a.84.84 0 0 1-.3-.94l1.22-3.78 2.44-7.51A.42.42 0 0 1 4.82 2a.43.43 0 0 1 .58 0 .42.42 0 0 1 .11.18l2.44 7.49h8.1l2.44-7.51A.42.42 0 0 1 18.6 2a.43.43 0 0 1 .58 0 .42.42 0 0 1 .11.18l2.44 7.51L23 13.45a.84.84 0 0 1-.35.94z"/>
+                    </svg>
+                    <span class="flex-1">Продолжить с GitLab</span>
+                    <span data-provider-state="gitlab" class="font-mono text-[9px] uppercase tracking-wider opacity-60"></span>
+                </button>
+            </div>
+
+            <div class="mt-5 pt-4 border-t border-line">
+                <p class="text-[10px] text-zinc-500 leading-relaxed">
+                    Пароль не создаётся и не хранится — вход подтверждает выбранный сервис.
+                    Мы сохраняем только имя, аватар и почту.
+                </p>
+                <p id="auth-server-note" class="hidden mt-2 text-[10px] text-zinc-400 leading-relaxed"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- ОКНО СОЗДАНИЯ НОВОСТИ (ДЛЯ АДМИНИСТРАТОРОВ)                           -->
+    <!-- ===================================================================== -->
+    <div id="news-modal" class="hidden modal-backdrop fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="modal-box bg-panel border border-line max-w-lg w-full p-6 sm:p-7 relative max-h-[90vh] overflow-y-auto">
+            <button onclick="closeNewsModal()" class="absolute top-5 right-5 text-xs font-mono text-zinc-500 hover:text-white cursor-pointer">✕</button>
+
+            <div class="font-mono text-xs text-crimson mb-1">ПАНЕЛЬ АДМИНИСТРАТОРА</div>
+            <h3 class="font-display text-lg font-bold text-white mb-5">Новая публикация</h3>
+
+            <form onsubmit="submitNews(event)" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs text-zinc-400 mb-1.5">Главное название</label>
+                        <input id="news-inp-title" type="text" required placeholder="Например: Обновление слияний" class="w-full px-3 py-2 bg-bg border border-line text-sm text-white focus:outline-none focus:border-crimson transition-colors">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-zinc-400 mb-1.5">Дата</label>
+                        <input id="news-inp-date" type="text" required placeholder="16.11.2026" class="w-full px-3 py-2 bg-bg border border-line text-sm font-mono text-white focus:outline-none focus:border-crimson transition-colors">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs text-zinc-400 mb-1.5">Краткое описание (видно до клика)</label>
+                    <input id="news-inp-summary" type="text" required placeholder="Коротко о главном в 1 строку" class="w-full px-3 py-2 bg-bg border border-line text-sm text-white focus:outline-none focus:border-crimson transition-colors">
+                </div>
+
+                <div>
+                    <label class="block text-xs text-zinc-400 mb-1.5">Полный текст новости (каждый абзац или пункт с новой строки)</label>
+                    <textarea id="news-inp-body" rows="6" required placeholder="Напишите полный текст новости. Строки, начинающиеся с «- », автоматически оформятся как аккуратный список." class="w-full px-3 py-2 bg-bg border border-line text-sm text-white focus:outline-none focus:border-crimson transition-colors leading-relaxed"></textarea>
+                </div>
+
+                <button type="submit" class="w-full py-2.5 bg-white text-black text-xs font-semibold hover:bg-crimson hover:text-white transition-colors cursor-pointer">
+                    Опубликовать новость
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- ОКНО ПОДТВЕРЖДЕНИЯ ПОКУПКИ ПРЕМИУМА                                   -->
+    <!-- ===================================================================== -->
+    <div id="buy-modal" class="hidden modal-backdrop fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="modal-box bg-panel border border-line max-w-md w-full p-6 sm:p-7 relative">
+            <button onclick="closeBuyModal()" class="absolute top-5 right-5 text-xs font-mono text-zinc-500 hover:text-white cursor-pointer">✕</button>
+
+            <div class="font-mono text-xs text-crimson mb-1">🎲 STELLAR PREMIUM</div>
+            <h3 class="font-display text-lg font-bold text-white mb-4">Оформление через Telegram</h3>
+
+            <div class="border-t border-b border-line py-3.5 space-y-2.5 text-xs mb-5">
+                <div class="flex justify-between">
+                    <span class="text-zinc-500">Никнейм</span>
+                    <span id="buy-nick" class="text-white font-medium"></span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-zinc-500">Срок</span>
+                    <span id="buy-tier" class="text-white"></span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-zinc-500">К оплате</span>
+                    <span id="buy-price" class="font-mono text-white"></span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-zinc-500">Кому писать в Telegram</span>
+                    <a href="https://t.me/feezzcoo" target="_blank" rel="noopener noreferrer" class="font-mono text-crimson hover:underline">@feezzcoo ↗</a>
+                </div>
+            </div>
+
+            <div class="mb-5">
+                <div class="text-[11px] font-mono text-zinc-500 mb-1.5">Текст сообщения для отправки в ЛС:</div>
+                <div id="buy-msg-preview" class="bg-bg border border-line p-3 text-xs font-mono text-zinc-300 select-all"></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <button type="button" onclick="copyBuyMessage()" class="py-2.5 border border-line text-xs text-zinc-300 hover:text-white hover:border-zinc-500 transition-colors cursor-pointer">
+                    Скопировать текст
+                </button>
+                <a href="https://t.me/feezzcoo" target="_blank" rel="noopener noreferrer" onclick="completeBuy()" class="py-2.5 bg-white text-black text-xs font-semibold hover:bg-crimson hover:text-white transition-colors text-center">
+                    Написать @feezzcoo ↗
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Уведомление -->
+    <div id="notify-box" class="fixed bottom-5 right-5 z-[110] flex flex-col gap-2 max-w-xs w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <script>
+        /* -------------------------------------------------------------------
+           3. АККАУНТЫ (GOOGLE / GITHUB / GITLAB) И ЗАЩИТА ПРЕМИУМА
+        ------------------------------------------------------------------- */
+        let selectedPremIdx = 0;
+        const premPlans = [
+            { duration: '2 недели', price: '55 ⭐️ / 35 ₴' },
+            { duration: '1 месяц', price: '100 ⭐ / 65 ₴' },
+            { duration: 'Навсегда', price: '160 ⭐️ / 110 ₴' }
+        ];
+        let pendingOrder = { tier: '', price: '' };
+
+        const defaultNews = [
+            {
+                id: 'nov-2026-update',
+                date: '14.11.2026',
+                title: 'Ноябрьское обновление Superstellar: Next Generation',
+                summary: 'Новые слияния талисманов, обновлённые костюмы и свежие талисманы на тестовом сервере.',
+                paragraphs: [
+                    'В ноябрьском обновлении Superstellar: Next Generation (Project: Superstellar) разработчики сделали упор на новые слияния талисманов и переработку костюмов по вселенной «Леди Баг и Супер-Кот»:'
+                ],
+                sections: [
+                    {
+                        heading: 'Новые слияния (Unifications)',
+                        text: 'В игру добавили свежие комбинации талисманов и способностей:',
+                        bullets: [
+                            'Леди Баг + Лиса (Ladybug + Fox)',
+                            'Бабочка + Петух (Butterfly + Rooster)',
+                            'Мышь + Петух (Mouse + Rooster)',
+                            'Мышь + Обезьяна (Mouse + Monkey)',
+                            'В разработке / на тесте: тизер скорого выхода слияния Кота и Тигра (Cat + Tiger)'
+                        ]
+                    },
+                    {
+                        heading: 'Реворк костюмов и украшений',
+                        text: 'Обновлён внешний вид костюмов для слияний Леди Баг с Котом, Павлином, Драконом и Мотыльком, а также добавлены новые варианты дизайна талисманов (украшений) Кота, Тигра, Дракона и Пчелы.'
+                    },
+                    {
+                        heading: 'Новинки тестового сервера (Tester Game)',
+                        text: 'Для тестеров открыли доступ к талисманам Быка (Ox) и Свиньи (Pig), улучшили талисманы Дракона и Павлина, а также добавили новые варианты акуматизации, включая Антибаг (AntiBug) и Леди Хаос (Lady Chaos).'
+                    }
+                ]
+            }
+        ];
+
+        function getNewsList() {
+            try {
+                const saved = JSON.parse(localStorage.getItem('sl_news'));
+                return Array.isArray(saved) && saved.length > 0 ? saved : defaultNews;
+            } catch {
+                return defaultNews;
+            }
+        }
+
+        function saveNewsList(list) {
+            localStorage.setItem('sl_news', JSON.stringify(list));
+        }
+
+        function renderNews() {
+            const list = getNewsList();
+            const user = getUser();
+            const isAdmin = user && user.role === 'admin';
+            const container = document.getElementById('news-list');
+            const countLabel = document.getElementById('news-count-label');
+
+            if (countLabel) countLabel.textContent = `ПУБЛИКАЦИЙ: ${list.length}`;
+
+            container.innerHTML = list.map((item, idx) => {
+                const bodyHtml = item.sections
+                    ? `
+                        ${(item.paragraphs || []).map(p => `<p class="text-sm text-zinc-300 leading-relaxed mb-4">${p}</p>`).join('')}
+                        <div class="space-y-4 mt-4">
+                            ${item.sections.map(sec => `
+                                <div class="border-l border-crimson/60 pl-4 py-0.5">
+                                    <div class="text-xs font-semibold text-white uppercase tracking-wide">${sec.heading}</div>
+                                    ${sec.text ? `<p class="text-sm text-zinc-400 mt-1 leading-relaxed">${sec.text}</p>` : ''}
+                                    ${sec.bullets ? `
+                                        <ul class="mt-2 space-y-1.5 text-sm text-zinc-300">
+                                            ${sec.bullets.map(b => `<li class="flex items-start gap-2"><span class="text-crimson font-mono text-xs mt-0.5">—</span><span>${b}</span></li>`).join('')}
+                                        </ul>
+                                    ` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    `
+                    : `<div class="space-y-2.5 text-sm text-zinc-300 leading-relaxed">${item.rawBody}</div>`;
+
+                return `
+                    <article class="rule-row-anim py-6 group" style="animation-delay: ${idx * 60}ms">
+                        <div onclick="toggleNewsItem('${item.id}')" class="row-hover flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer py-1">
+                            <div class="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-8 flex-1">
+                                <span class="font-mono text-xs text-zinc-500 w-24 shrink-0">${item.date}</span>
+                                <div class="flex-1">
+                                    <h3 class="text-base sm:text-lg font-medium text-white group-hover:text-crimson transition-colors">
+                                        ${item.title}
+                                    </h3>
+                                    <p class="text-xs sm:text-sm text-zinc-400 mt-1">${item.summary}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-4 self-end sm:self-center shrink-0">
+                                ${isAdmin && item.id !== 'nov-2026-update' ? `
+                                    <button onclick="event.stopPropagation(); deleteNewsItem('${item.id}')" class="font-mono text-[11px] text-zinc-500 hover:text-crimson transition-colors cursor-pointer">
+                                        [Удалить]
+                                    </button>
+                                ` : ''}
+                                <span id="news-arrow-${item.id}" class="font-mono text-xs text-zinc-400 group-hover:text-white transition-transform duration-300">
+                                    Открыть ↓
+                                </span>
+                            </div>
+                        </div>
+
+                        <div id="news-body-${item.id}" class="hidden sm:ml-32 mt-5 pt-5 border-t border-line/70">
+                            ${bodyHtml}
+                        </div>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        function toggleNewsItem(id) {
+            const body = document.getElementById(`news-body-${id}`);
+            const arrow = document.getElementById(`news-arrow-${id}`);
+            if (!body) return;
+            const isHidden = body.classList.contains('hidden');
+            body.classList.toggle('hidden');
+            if (arrow) {
+                arrow.textContent = isHidden ? 'Свернуть ↑' : 'Открыть ↓';
+                arrow.classList.toggle('text-crimson', isHidden);
+            }
+        }
+
+        function openNewsModal() {
+            const today = new Date();
+            const dd = String(today.getDate()).padStart(2, '0');
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const yyyy = today.getFullYear();
+            document.getElementById('news-inp-date').value = `${dd}.${mm}.${yyyy}`;
+            document.getElementById('news-modal').classList.remove('hidden');
+        }
+
+        function closeNewsModal() {
+            document.getElementById('news-modal').classList.add('hidden');
+        }
+
+        function submitNews(e) {
+            e.preventDefault();
+            const title = document.getElementById('news-inp-title').value.trim();
+            const date = document.getElementById('news-inp-date').value.trim();
+            const summary = document.getElementById('news-inp-summary').value.trim();
+            const text = document.getElementById('news-inp-body').value.trim();
+            if (!title || !text) return;
+
+            const rawBody = text.split('\n').map(line => {
+                const trimmed = line.trim();
+                if (!trimmed) return '';
+                if (trimmed.startsWith('- ')) {
+                    return `<div class="flex items-start gap-2 pl-2"><span class="text-crimson font-mono text-xs mt-0.5">—</span><span>${trimmed.slice(2)}</span></div>`;
+                }
+                return `<p>${trimmed}</p>`;
+            }).join('');
+
+            const list = getNewsList();
+            list.unshift({
+                id: 'news-' + Date.now(),
+                date,
+                title,
+                summary,
+                rawBody
+            });
+            saveNewsList(list);
+
+            document.getElementById('news-inp-title').value = '';
+            document.getElementById('news-inp-summary').value = '';
+            document.getElementById('news-inp-body').value = '';
+            closeNewsModal();
+            renderNews();
+            showMsg('Новость опубликована');
+        }
+
+        function deleteNewsItem(id) {
+            const list = getNewsList().filter(item => item.id !== id);
+            saveNewsList(list);
+            renderNews();
+            showMsg('Публикация удалена');
+        }
+
+        const AUTH_PROVIDER_NAMES = { google: 'Google', github: 'GitHub', gitlab: 'GitLab' };
+        const AUTH_ERRORS = {
+            access_denied: 'Вход отменён.',
+            cancelled: 'Вход отменён.',
+            state: 'Сессия входа истекла — попробуйте ещё раз.',
+            provider: 'Сервис не подтвердил вход. Попробуйте ещё раз или выберите другой.',
+            server: 'Ошибка сервера. Попробуйте позже.',
+            google_not_configured: 'Вход через Google ещё не настроен на сервере.',
+            github_not_configured: 'Вход через GitHub ещё не настроен на сервере.',
+            gitlab_not_configured: 'Вход через GitLab ещё не настроен на сервере.'
+        };
+
+        let currentUser = null;
+        let authConfig = {
+            server: false,
+            providers: { google: false, github: false, gitlab: false }
+        };
+
+        function getUser() {
+            return currentUser;
+        }
+
+        function syncAuthUI() {
+            const user = getUser();
+            const guestBox = document.getElementById('auth-guest');
+            const loggedBox = document.getElementById('auth-logged');
+            const statusLine = document.getElementById('prem-status-line');
+            const addNewsBtn = document.getElementById('btn-add-news');
+
+            if (user) {
+                guestBox.classList.add('hidden');
+                loggedBox.classList.remove('hidden');
+                loggedBox.classList.add('flex');
+
+                document.getElementById('nav-nick').textContent = user.nick;
+
+                const avatar = document.getElementById('nav-avatar');
+                if (avatar && user.avatar) {
+                    avatar.src = user.avatar;
+                    avatar.alt = user.nick;
+                    avatar.classList.remove('hidden');
+                } else if (avatar) {
+                    avatar.removeAttribute('src');
+                    avatar.classList.add('hidden');
+                }
+
+                const providerName = AUTH_PROVIDER_NAMES[user.provider] || user.provider || 'OAuth';
+                const badge = document.getElementById('nav-badge');
+                badge.textContent = providerName.toUpperCase();
+                badge.classList.remove('hidden');
+                badge.className = 'font-mono text-[10px] text-zinc-400 uppercase';
+
+                if (addNewsBtn) {
+                    addNewsBtn.classList.toggle('hidden', user.role !== 'admin');
+                }
+
+                statusLine.className = 'text-xs font-mono text-zinc-300';
+                statusLine.textContent = `● ${user.nick} · ${providerName}`;
+            } else {
+                guestBox.classList.remove('hidden');
+                loggedBox.classList.add('hidden');
+                loggedBox.classList.remove('flex');
+                if (addNewsBtn) addNewsBtn.classList.add('hidden');
+
+                const avatar = document.getElementById('nav-avatar');
+                if (avatar) {
+                    avatar.removeAttribute('src');
+                    avatar.classList.add('hidden');
+                }
+
+                statusLine.className = 'text-xs font-mono text-crimson';
+                statusLine.textContent = '● Требуется вход для оформления';
+            }
+            renderNews();
+        }
+
+        async function loadAuthConfig() {
+            if (location.protocol !== 'file:') {
+                try {
+                    const response = await fetch('/api/config', { cache: 'no-store' });
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data && data.server) authConfig = data;
+                    }
+                } catch {
+                    // Сервер не запущен — покажем подсказку в окне входа.
+                }
+            }
+            applyAuthConfig();
+        }
+
+        function applyAuthConfig() {
+            const ready = Boolean(authConfig.server);
+
+            document.querySelectorAll('[data-provider-state]').forEach((element) => {
+                const provider = element.dataset.providerState;
+                const configured = ready && Boolean(authConfig.providers[provider]);
+                element.textContent = ready && !configured ? 'нет ключей' : '';
+                element.className = `font-mono text-[9px] uppercase tracking-wider ${configured ? 'text-transparent' : 'opacity-60'}`;
+            });
+
+            const note = document.getElementById('auth-server-note');
+            if (!note) return;
+            if (ready) {
+                note.classList.add('hidden');
+                note.textContent = '';
+                return;
+            }
+            note.classList.remove('hidden');
+            note.innerHTML = location.protocol === 'file:'
+                ? 'Вход работает через сервер. Запусти <code class="text-zinc-200">npm start</code> в папке сайта и открой <code class="text-zinc-200">http://localhost:3000</code>.'
+                : 'Сервер не отвечает. Запусти <code class="text-zinc-200">npm start</code> и обнови страницу.';
+        }
+
+        async function refreshSession() {
+            try { localStorage.removeItem('sl_account'); } catch { /* старый демо-вход */ }
+
+            if (location.protocol !== 'file:') {
+                try {
+                    const response = await fetch('/api/me', { cache: 'no-store' });
+                    if (response.ok) {
+                        const data = await response.json();
+                        currentUser = data.user || null;
+                    }
+                } catch {
+                    currentUser = null;
+                }
+            }
+
+            syncAuthUI();
+            handleAuthResult();
+        }
+
+        function handleAuthResult() {
+            const params = new URLSearchParams(location.search);
+            const auth = params.get('auth');
+            const error = params.get('auth_error');
+
+            if (auth === 'created') {
+                showMsg('Аккаунт создан. Добро пожаловать!');
+            } else if (auth === 'ok') {
+                showMsg('Вы вошли в аккаунт');
+            } else if (error) {
+                showMsg(AUTH_ERRORS[error] || 'Не удалось войти. Попробуйте ещё раз.');
+            }
+
+            if (auth || error) {
+                history.replaceState(null, '', location.pathname + location.hash);
+            }
+        }
+
+        function showAuthNotice(message) {
+            const notice = document.getElementById('auth-notice');
+            if (!notice) return;
+            notice.textContent = message;
+            notice.classList.remove('hidden');
+        }
+
+        function openAuthModal() {
+            const notice = document.getElementById('auth-notice');
+            if (notice) notice.classList.add('hidden');
+            document.getElementById('auth-modal').classList.remove('hidden');
+        }
+
+        function closeAuthModal() {
+            document.getElementById('auth-modal').classList.add('hidden');
+        }
+
+        function loginWithProvider(provider) {
+            const key = String(provider).toLowerCase();
+            const name = AUTH_PROVIDER_NAMES[key] || provider;
+
+            if (location.protocol === 'file:') {
+                showAuthNotice('Сайт открыт как файл. Запусти npm start и зайди на http://localhost:3000 — тогда вход заработает.');
+                return;
+            }
+            if (!authConfig.server) {
+                showAuthNotice('Сервер не отвечает. Запусти npm start и обнови страницу.');
+                return;
+            }
+            if (!authConfig.providers[key]) {
+                showAuthNotice(`Вход через ${name} не настроен. Добавь ${key.toUpperCase()}_CLIENT_ID и ${key.toUpperCase()}_CLIENT_SECRET в .env и перезапусти сервер.`);
+                return;
+            }
+
+            showAuthNotice(`Перенаправляем в ${name}…`);
+            location.href = `/auth/${key}`;
+        }
+
+        async function logoutUser() {
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+            } catch {
+                // даже если сервер недоступен, локальное состояние сбрасываем
+            }
+            currentUser = null;
+            syncAuthUI();
+            showMsg('Вы вышли из аккаунта');
+        }
+
+        function selectPremPlan(idx) {
+            selectedPremIdx = idx;
+            document.querySelectorAll('.prem-plan-btn').forEach((btn, i) => {
+                btn.className = i === idx
+                    ? 'prem-plan-btn spotlight-card w-full text-left p-4 border border-crimson bg-panel transition-colors cursor-pointer'
+                    : 'prem-plan-btn spotlight-card w-full text-left p-4 border border-line bg-bg/70 hover:border-zinc-600 transition-colors cursor-pointer';
+            });
+            const user = getUser();
+            const mainBtn = document.getElementById('prem-main-btn');
+            if (user && mainBtn) {
+                mainBtn.textContent = `Оформить (${premPlans[idx].duration} — ${premPlans[idx].price})`;
+            }
+        }
+
+        function attemptBuySelected() {
+            const plan = premPlans[selectedPremIdx];
+            attemptBuy(plan.duration, plan.price);
+        }
+
+        function attemptBuy(tier, price) {
+            const user = getUser();
+            if (!user) {
+                showMsg('Сначала зарегистрируйтесь на сайте');
+                openAuthModal('register');
+                return;
+            }
+            pendingOrder = { tier, price };
+            document.getElementById('buy-nick').textContent = user.nick;
+            document.getElementById('buy-tier').textContent = `STELLAR PREMIUM (${tier})`;
+            document.getElementById('buy-price').textContent = price;
+            document.getElementById('buy-msg-preview').textContent =
+                `Привет! Хочу приобрести 🎲 STELLAR PREMIUM на ${tier} (${price}). Мой ник в Roblox: ${user.nick}`;
+            document.getElementById('buy-modal').classList.remove('hidden');
+        }
+
+        function copyBuyMessage() {
+            const text = document.getElementById('buy-msg-preview').textContent;
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            ta.remove();
+            showMsg('Текст заявки скопирован');
+        }
+
+        function closeBuyModal() {
+            document.getElementById('buy-modal').classList.add('hidden');
+        }
+
+        function completeBuy() {
+            closeBuyModal();
+            showMsg('Отправьте сообщение @feezzcoo в Telegram');
+        }
+
+        /* -------------------------------------------------------------------
+           0. КАСТОМНЫЙ ДВИЖОК АНИМАЦИЙ (CANVAS, МАГНИТЫ, SCRAMBLE, КУРСОР)
+        ------------------------------------------------------------------- */
+        function initMotionEngine() {
+            const canvas = document.getElementById('bg-canvas');
+            const ctx = canvas.getContext('2d');
+            let w, h;
+            const mouse = { x: -1000, y: -1000 };
+            const particles = [];
+            const bursts = [];
+
+            function resizeCanvas() {
+                w = canvas.width = window.innerWidth;
+                h = canvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+
+            const count = Math.min(55, Math.floor((w * h) / 24000));
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * h,
+                    vx: (Math.random() - 0.5) * 0.28,
+                    vy: -Math.random() * 0.35 - 0.08,
+                    r: Math.random() * 1.4 + 0.5,
+                    crimson: Math.random() < 0.25
+                });
+            }
+
+            window.addEventListener('mousemove', (e) => {
+                mouse.x = e.clientX;
+                mouse.y = e.clientY;
+            });
+
+            window.addEventListener('click', (e) => {
+                for (let i = 0; i < 10; i++) {
+                    const angle = (Math.PI * 2 * i) / 10 + Math.random() * 0.4;
+                    const speed = Math.random() * 2.4 + 0.8;
+                    bursts.push({
+                        x: e.clientX,
+                        y: e.clientY,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        life: 1,
+                        crimson: i % 2 === 0
+                    });
+                }
+            });
+
+            function renderCanvas() {
+                ctx.clearRect(0, 0, w, h);
+
+                const ox = w * 0.82;
+                const oy = h * 0.24;
+                const time = Date.now() * 0.00025;
+                ctx.save();
+                ctx.translate(ox, oy);
+                ctx.rotate(time);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 220, 75, 0.35, 0, Math.PI * 2);
+                ctx.stroke();
+                const sx = Math.cos(time * 2.5) * 220;
+                const sy = Math.sin(time * 2.5) * 75;
+                ctx.fillStyle = 'rgba(225, 29, 72, 0.65)';
+                ctx.beginPath();
+                ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                for (let p of particles) {
+                    const dx = p.x - mouse.x;
+                    const dy = p.y - mouse.y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist < 110 && dist > 0) {
+                        const force = (110 - dist) / 110;
+                        p.x += (dx / dist) * force * 1.4;
+                        p.y += (dy / dist) * force * 1.4;
+                    }
+
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    if (p.y < -10) { p.y = h + 10; p.x = Math.random() * w; }
+                    if (p.x < -10) p.x = w + 10;
+                    if (p.x > w + 10) p.x = -10;
+
+                    ctx.fillStyle = p.crimson ? 'rgba(225, 29, 72, 0.55)' : 'rgba(255, 255, 255, 0.22)';
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                for (let i = bursts.length - 1; i >= 0; i--) {
+                    const b = bursts[i];
+                    b.x += b.vx;
+                    b.y += b.vy;
+                    b.vx *= 0.94;
+                    b.vy *= 0.94;
+                    b.life -= 0.035;
+                    if (b.life <= 0) {
+                        bursts.splice(i, 1);
+                        continue;
+                    }
+                    ctx.fillStyle = b.crimson
+                        ? `rgba(225, 29, 72, ${b.life * 0.85})`
+                        : `rgba(255, 255, 255, ${b.life * 0.6})`;
+                    ctx.beginPath();
+                    ctx.arc(b.x, b.y, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                requestAnimationFrame(renderCanvas);
+            }
+            requestAnimationFrame(renderCanvas);
+
+            const macCursor = document.getElementById('mac-cursor');
+            if (macCursor && window.matchMedia('(pointer: fine)').matches) {
+                let cx = -100, cy = -100, isHover = false, isDown = false;
+                function updateMacCursor() {
+                    const offset = isHover ? -12 : 0;
+                    const scale = isDown ? 0.85 : 1;
+                    macCursor.style.transform = `translate3d(${cx + offset}px, ${cy + offset}px, 0) scale(${scale})`;
+                }
+
+                window.addEventListener('mousemove', (e) => {
+                    cx = e.clientX;
+                    cy = e.clientY;
+                    updateMacCursor();
+                }, { passive: true });
+
+                window.addEventListener('mousedown', () => { isDown = true; updateMacCursor(); });
+                window.addEventListener('mouseup', () => { isDown = false; updateMacCursor(); });
+
+                document.addEventListener('mouseover', (e) => {
+                    if (e.target.closest('a, button, input, textarea, .spotlight-card')) {
+                        isHover = true;
+                        macCursor.classList.add('is-hover');
+                    } else {
+                        isHover = false;
+                        macCursor.classList.remove('is-hover');
+                    }
+                    updateMacCursor();
+                });
+            }
+
+            document.querySelectorAll('.magnetic-btn').forEach(btn => {
+                btn.addEventListener('mousemove', (e) => {
+                    const rect = btn.getBoundingClientRect();
+                    const x = (e.clientX - rect.left - rect.width / 2) * 0.22;
+                    const y = (e.clientY - rect.top - rect.height / 2) * 0.28;
+                    btn.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+                });
+                btn.addEventListener('mouseleave', () => {
+                    btn.style.transform = 'translate3d(0, 0, 0)';
+                });
+            });
+
+            const chars = '✧🐞✦⋆*+•—';
+            document.querySelectorAll('.scramble-link').forEach(el => {
+                const original = el.dataset.text || el.textContent;
+                let interval = null;
+                el.addEventListener('mouseenter', () => {
+                    let iter = 0;
+                    clearInterval(interval);
+                    interval = setInterval(() => {
+                        el.textContent = original.split('').map((ch, idx) => {
+                            if (ch === ' ') return ' ';
+                            if (idx < iter) return original[idx];
+                            return chars[Math.floor(Math.random() * chars.length)];
+                        }).join('');
+                        iter += 0.6;
+                        if (iter >= original.length) {
+                            el.textContent = original;
+                            clearInterval(interval);
+                        }
+                    }, 24);
+                });
+            });
+
+            document.querySelectorAll('.spotlight-card').forEach(card => {
+                card.addEventListener('mousemove', (e) => {
+                    const rect = card.getBoundingClientRect();
+                    card.style.setProperty('--mx', (e.clientX - rect.left) + 'px');
+                    card.style.setProperty('--my', (e.clientY - rect.top) + 'px');
+                });
+            });
+
+            const scrollBar = document.getElementById('scroll-bar');
+            const heroTitle = document.getElementById('hero-title');
+            window.addEventListener('scroll', () => {
+                const scrollTop = window.scrollY;
+                const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+                scrollBar.style.width = pct + '%';
+
+                if (heroTitle && scrollTop < 600) {
+                    heroTitle.style.transform = `translate3d(0, ${scrollTop * 0.14}px, 0)`;
+                    heroTitle.style.opacity = Math.max(0.2, 1 - scrollTop / 520);
+                }
+            }, { passive: true });
+        }
+
+        /* -------------------------------------------------------------------
+           1. ЭКРАН ЗАГРУЗКИ: ВИДЕО-ЗАСТАВКА + SPLIT-ШТОРКА
+        ------------------------------------------------------------------- */
+        const introScreen = document.getElementById('intro-screen');
+        const introVideo = document.getElementById('intro-video');
+        const introPlaceholder = document.getElementById('intro-placeholder');
+        let introFinished = false;
+        let introEndTimer = null;
+
+        function clearIntroTimers() {
+            clearTimeout(introEndTimer);
+            introEndTimer = null;
+        }
+
+        function finishIntro() {
+            if (introFinished) return;
+            introFinished = true;
+            clearIntroTimers();
+
+            introVideo.ontimeupdate = null;
+            introVideo.onended = null;
+            introVideo.pause();
+            document.body.classList.remove('intro-lock');
+
+            introScreen.classList.add('is-splitting');
+            setTimeout(() => introScreen.classList.add('is-closed'), 120);
+
+            setTimeout(() => {
+                introScreen.style.display = 'none';
+                introScreen.setAttribute('aria-hidden', 'true');
+            }, 1250);
+
+            setTimeout(() => {
+                document.body.classList.add('is-ready');
+                initScrollAnimations();
+            }, 380);
+        }
+
+        function skipIntro() {
+            introFinished = true;
+            clearIntroTimers();
+            introVideo.pause();
+            introScreen.style.display = 'none';
+            introScreen.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('intro-lock');
+            document.body.classList.add('is-ready');
+            initScrollAnimations();
+        }
+
+        function runIntro() {
+            const params = new URLSearchParams(location.search);
+            const afterAuth = params.has('auth') || params.has('auth_error');
+            const disabled = params.get('intro') === '0';
+
+            if (afterAuth || disabled) {
+                skipIntro();
+                return;
+            }
+
+            introFinished = false;
+            clearIntroTimers();
+
+            introScreen.style.display = '';
+            introScreen.removeAttribute('aria-hidden');
+            introScreen.classList.remove('is-closed', 'is-splitting');
+            document.body.classList.remove('is-ready');
+            document.body.classList.add('intro-lock');
+
+            introVideo.classList.remove('hidden');
+            introPlaceholder.classList.add('hidden');
+            introVideo.muted = true;
+            try { introVideo.currentTime = 0; } catch { /* метаданные ещё грузятся */ }
+
+            introVideo.onended = () => {
+                clearIntroTimers();
+                introEndTimer = setTimeout(finishIntro, 260);
+            };
+
+            introVideo.onerror = () => {
+                introVideo.classList.add('hidden');
+                introPlaceholder.classList.remove('hidden');
+                clearIntroTimers();
+                introEndTimer = setTimeout(finishIntro, 1600);
+            };
+
+            const playback = introVideo.play();
+            if (playback && typeof playback.catch === 'function') {
+                playback.catch(() => {
+                    // Автовоспроизведение заблокировано — не держим гостя на чёрном экране.
+                    introVideo.classList.add('hidden');
+                    introPlaceholder.classList.remove('hidden');
+                    clearIntroTimers();
+                    introEndTimer = setTimeout(finishIntro, 1200);
+                });
+            }
+        }
+
+        function replayIntro() {
+            runIntro();
+        }
+
+        /* -------------------------------------------------------------------
+           2. ПРАВИЛА РП И ПРАВИЛА ТГ ЧАТА
+        ------------------------------------------------------------------- */
+        const rulesData = [
+            { code: '01', cat: 'rp', title: 'ВЫЗОВ ХРАНИТЕЛЯ', desc: 'Запрещено приходить без предварительного вызова хранителя.' },
+            { code: '02', cat: 'rp', title: 'ПАТРУЛИРОВАНИЕ', desc: 'Патрулирование разрешено, но не должно быть постоянным. Не забывайте и о личной жизни персонажа.' },
+            { code: '03', cat: 'rp', title: 'ШКОЛА', desc: 'За время ролевой игры необходимо посетить школу хотя бы 1 раз. Пропускать её нельзя.' },
+            { code: '04', cat: 'miraculous', title: 'ЧУЖИЕ ТАЛИСМАНЫ', desc: 'Запрещено брать чужой талисман, если он уже занят другим игроком.' },
+            { code: '05', cat: 'miraculous', title: 'ДРАКИ', desc: 'Запрещено избивать и атаковать друг друга без согласования.' },
+            { code: '06', cat: 'rp', title: 'РАСКРЫТИЕ ЛИЧНОСТИ', desc: 'Нельзя раскрывать тайную личность персонажа без разрешения игрока.' },
+            { code: '07', cat: 'miraculous', title: 'ТАЛИСМАН БАБОЧКИ', desc: 'Запрещено акуматизировать всех подряд. Используйте способности разумно.' },
+            { code: '08', cat: 'miraculous', title: 'СПОСОБНОСТИ ТАЛИСМАНОВ', desc: 'Запрещено злоупотреблять способностями талисманов Змеи, Обезьяны, Пчелы и других талисманов.' },
+            { code: '09', cat: 'miraculous', title: 'ПЛАН ПОБЕДЫ', desc: 'Для победы необходимо продумать план действий. Нельзя просто забрать предмет с акумой с помощью талисмана Собаки без развития сюжета и взаимодействия с другими игроками.' },
+            { code: '10', cat: 'rp', title: 'ЗАНЯТИЕ РОЛЕЙ', desc: 'Запрещено занимать одну и ту же роль в каждом РП. Особенно это касается Леди Баг, Супер-Кота и Хризалис.' }
+        ];
+
+        const tgRulesData = [
+            { code: '01', title: 'Спам и неподобающий контент', desc: 'Запрещён спам (от 6 одинаковых сообщений), а также 18+ и непристойные материалы.', punish: 'варн на 1 день + мут 1 час', severe: false },
+            { code: '02', title: 'Политика и религия', desc: 'Любые обсуждения политики и религии запрещены.', punish: 'варн навсегда + мут 2 часа', severe: true },
+            { code: '03', title: 'Оскорбления (включая рофл)', desc: 'Запрещены любые оскорбления участников и администрации, даже в шутливой форме (рофл).', punish: 'варн на 7 дней + мут 30 минут', severe: false },
+            { code: '04', title: 'Одерство', desc: 'Запрещено навязывание, обсуждение или создание сексуальных отношений в чате.', punish: 'варн на 7 дней + мут 30 минут', severe: false },
+            { code: '05', title: 'Ложная информация и выдача за администрацию', desc: 'Запрещено распространять фейки и выдавать себя за администрацию.', punish: 'варн на 14 дней + мут 1 час', severe: false },
+            { code: '06', title: 'Злоупотребление командами', desc: 'Запрещено спамить командами и вызывать администрацию без причины.', punish: 'варн на 1 день + мут 30 минут', severe: false },
+            { code: '07', title: 'Конфликты', desc: 'Ссоры и конфликты запрещены.', punish: 'варн на 5 дней + мут 30 минут', severe: false },
+            { code: '08', title: 'Реклама и переманивание', desc: 'Запрещена реклама и переманивание участников или стаффа.', punish: 'варн навсегда + мут 3 часа', severe: true }
+        ];
+
+        function switchRulesSection(section) {
+            const btnRp = document.getElementById('sec-tab-rp');
+            const btnTg = document.getElementById('sec-tab-tg');
+            const blockRp = document.getElementById('rules-block-rp');
+            const blockTg = document.getElementById('rules-block-tg');
+            const kicker = document.getElementById('rules-kicker');
+            const heading = document.getElementById('rules-heading');
+
+            if (section === 'rp') {
+                btnRp.className = 'px-4 py-2 text-xs font-medium bg-white text-black transition-colors cursor-pointer';
+                btnTg.className = 'px-4 py-2 text-xs font-medium text-zinc-400 hover:text-white transition-colors cursor-pointer';
+                blockRp.classList.remove('hidden');
+                blockTg.classList.add('hidden');
+                kicker.textContent = '𓆩 🐞 𓆪 СВОД ПРАВИЛ ПРОЕКТА';
+                heading.textContent = 'Правила РП';
+                selectRuleTab('all');
+            } else {
+                btnTg.className = 'px-4 py-2 text-xs font-medium bg-white text-black transition-colors cursor-pointer';
+                btnRp.className = 'px-4 py-2 text-xs font-medium text-zinc-400 hover:text-white transition-colors cursor-pointer';
+                blockTg.classList.remove('hidden');
+                blockRp.classList.add('hidden');
+                kicker.textContent = '🗓 ПРАВИЛА ЧАТА • ✧ STELLAR LEGACY 🐞';
+                heading.textContent = 'Правила ТГ чата';
+                renderTgRules();
+            }
+        }
+
+        function renderTgRules() {
+            document.getElementById('tg-rules-list').innerHTML = tgRulesData.map((item, idx) => `
+                <div class="rule-row-anim row-hover py-6 flex flex-col md:flex-row md:items-center justify-between gap-4 group" style="animation-delay: ${idx * 55}ms">
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-8 flex-1">
+                        <div class="flex items-center gap-2 font-mono text-xs text-crimson w-16 shrink-0">
+                            <span class="text-zinc-600 group-hover:text-crimson transition-colors">୨ৎ</span>
+                            <span>${item.code}</span>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-display text-sm sm:text-base font-bold text-white tracking-wide group-hover:text-crimson transition-colors">${item.title}</h3>
+                            <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">${item.desc}</p>
+                        </div>
+                    </div>
+                    <div class="sm:ml-24 md:ml-4 shrink-0">
+                        <span class="inline-block font-mono text-[11px] px-3 py-1.5 border ${item.severe ? 'border-crimson/50 bg-crimson/10 text-crimson' : 'border-line bg-panel text-zinc-300'}">
+                            Наказание: ${item.punish}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectRuleTab(filter) {
+            document.querySelectorAll('.rtab').forEach((el) => {
+                const active = el.dataset.rtab === filter;
+                el.className = active
+                    ? 'rtab text-white border-b border-crimson pb-1 cursor-pointer transition-colors'
+                    : 'rtab text-zinc-500 hover:text-white pb-1 cursor-pointer transition-colors';
+            });
+
+            const filtered = filter === 'all'
+                ? rulesData
+                : rulesData.filter(item => item.cat === filter);
+
+            document.getElementById('rules-list').innerHTML = filtered.map((item, idx) => `
+                <div class="rule-row-anim row-hover py-6 flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-8 group" style="animation-delay: ${idx * 55}ms">
+                    <div class="flex items-center gap-2 font-mono text-xs text-crimson w-16 shrink-0">
+                        <span class="text-zinc-600 group-hover:text-crimson transition-colors">୨ৎ</span>
+                        <span>${item.code}</span>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="font-display text-sm sm:text-base font-bold text-white tracking-wide group-hover:text-crimson transition-colors">${item.title}</h3>
+                        <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">${item.desc}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        /* -------------------------------------------------------------------
+           4. ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК И УВЕДОМЛЕНИЯ
+        ------------------------------------------------------------------- */
+        function setPageBackground(pageId) {
+            const bg = document.getElementById('page-bg');
+            if (bg) bg.dataset.page = pageId;
+
+            document.querySelectorAll('.page-bg-layer').forEach(layer => {
+                layer.classList.toggle('is-active', layer.dataset.bg === pageId);
+            });
+        }
+
+        function switchPage(pageId) {
+            setPageBackground(pageId);
+
+            document.querySelectorAll('.page-view').forEach(sec => {
+                if (sec.dataset.view === pageId) {
+                    sec.classList.remove('hidden');
+                    // Перезапуск анимации появления вкладки
+                    sec.style.animation = 'none';
+                    sec.offsetHeight;
+                    sec.style.animation = '';
+                } else {
+                    sec.classList.add('hidden');
+                }
+            });
+
+            document.querySelectorAll('.nav-tab').forEach(link => {
+                const isActive = link.dataset.page === pageId;
+                link.classList.toggle('text-white', isActive);
+                link.classList.toggle('text-zinc-400', !isActive);
+            });
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function initScrollAnimations() {
+            const io = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) entry.target.classList.add('visible');
+                });
+            }, { threshold: 0.12 });
+
+            document.querySelectorAll('.scroll-fade').forEach(el => io.observe(el));
+        }
+
+        function toggleMobileNav() {
+            const nav = document.getElementById('mobile-nav');
+            nav.classList.toggle('hidden');
+            nav.classList.toggle('flex');
+        }
+
+        function showMsg(text) {
+            const box = document.getElementById('notify-box');
+            const el = document.createElement('div');
+            el.className = 'pointer-events-auto bg-panel border border-line px-4 py-3 text-xs text-white transition-all duration-300 opacity-0 translate-y-2';
+            el.textContent = text;
+            box.appendChild(el);
+            requestAnimationFrame(() => el.classList.remove('opacity-0', 'translate-y-2'));
+            setTimeout(() => {
+                el.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => el.remove(), 300);
+            }, 3000);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initMotionEngine();
+            selectRuleTab('all');
+            renderTgRules();
+            syncAuthUI();
+            loadAuthConfig();
+            refreshSession();
+            runIntro();
+        });
+    </script>
+</body>
+</html>

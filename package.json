@@ -1,0 +1,13 @@
+{
+  "name": "stellar-legacy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stellar Legacy — RP-портал по Леди Баг и Супер-Коту",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test-auth.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
